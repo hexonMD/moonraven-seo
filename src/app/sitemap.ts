@@ -1,28 +1,34 @@
 import type { MetadataRoute } from 'next';
-import {
-  getAllProductHandles,
-  getAllCollectionHandles,
-  getAllPages,
-  getAllArticles,
-} from '@/lib/shopify';
 import { getAllSymbolContentSlugs } from '@/lib/symbolism-content';
+import { getAllMemorialContentSlugs } from '@/lib/memorial-content';
+import { getAllMaterialContentSlugs } from '@/lib/materials-content';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://moonraven.com';
 
 export const revalidate = 3600;
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [products, collections, pages, articles] = await Promise.all([
-    getAllProductHandles().catch(() => [] as string[]),
-    getAllCollectionHandles().catch(() => [] as string[]),
-    getAllPages().catch(() => []),
-    getAllArticles().catch(() => []),
-  ]);
+export default function sitemap(): MetadataRoute.Sitemap {
+  // Only emit the pSEO surfaces Next.js is responsible for. The home,
+  // /products/*, /collections/*, /pages/*, /blog/* are served by Shopify
+  // via fallback rewrite — Shopify already has its own sitemap at
+  // /sitemap.xml that handles those. Submit BOTH to Search Console.
 
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${SITE_URL}/`, changeFrequency: 'daily', priority: 1.0 },
-    { url: `${SITE_URL}/collections/all`, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${SITE_URL}/symbolism`, changeFrequency: 'weekly', priority: 0.8 },
+    {
+      url: `${SITE_URL}/symbolism`,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/memorial`,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/materials`,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
   ];
 
   const symbolismEntries: MetadataRoute.Sitemap = getAllSymbolContentSlugs().map((slug) => ({
@@ -31,38 +37,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  const productEntries: MetadataRoute.Sitemap = products.map((h) => ({
-    url: `${SITE_URL}/products/${h}`,
-    changeFrequency: 'weekly',
-    priority: 0.8,
-  }));
-
-  const collectionEntries: MetadataRoute.Sitemap = collections.map((h) => ({
-    url: `${SITE_URL}/collections/${h}`,
-    changeFrequency: 'weekly',
+  const memorialEntries: MetadataRoute.Sitemap = getAllMemorialContentSlugs().map((slug) => ({
+    url: `${SITE_URL}/memorial/${slug}`,
+    changeFrequency: 'monthly' as const,
     priority: 0.7,
   }));
 
-  const pageEntries: MetadataRoute.Sitemap = pages.map((p) => ({
-    url: `${SITE_URL}/pages/${p.handle}`,
-    lastModified: p.updatedAt,
-    changeFrequency: 'monthly',
-    priority: 0.5,
+  const materialEntries: MetadataRoute.Sitemap = getAllMaterialContentSlugs().map((slug) => ({
+    url: `${SITE_URL}/materials/${slug}`,
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
   }));
 
-  const articleEntries: MetadataRoute.Sitemap = articles.map((a) => ({
-    url: `${SITE_URL}/blog/${a.blog.handle}/${a.handle}`,
-    lastModified: a.publishedAt ?? undefined,
-    changeFrequency: 'monthly',
-    priority: 0.5,
-  }));
-
-  return [
-    ...staticRoutes,
-    ...symbolismEntries,
-    ...productEntries,
-    ...collectionEntries,
-    ...pageEntries,
-    ...articleEntries,
-  ];
+  return [...staticRoutes, ...symbolismEntries, ...memorialEntries, ...materialEntries];
 }
