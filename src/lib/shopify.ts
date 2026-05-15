@@ -408,20 +408,13 @@ export async function getAllPages(): Promise<Page[]> {
 }
 
 export async function searchProductsByKeyword(keywords: string[], first = 12): Promise<Product[]> {
-  // Tag-only search. Title-based matching wildcard-matched the brand name
-  // "by Moon Raven Designs" in every product title, so `title:*raven*`
-  // returned the whole catalog. Moonraven tags products with descriptive
-  // symbol tags (raven, crow, skull, etc.) and per-piece tags like
-  // "raven jewelry", "raven necklace" — those are precise.
-  const clauses = keywords.flatMap((k) => [
-    `tag:${k}`,
-    `tag:"${k} jewelry"`,
-    `tag:"${k} necklace"`,
-    `tag:"${k} pendant"`,
-    `tag:"${k} ring"`,
-    `tag:"${k} earrings"`,
-    `tag:"${k} symbolism"`,
-  ]);
+  // Moonraven's catalog has aggressive brand-spam tags: every product carries
+  // tags like 'raven jewelry', 'raven skull', 'MoonRavenDesigns'. So neither
+  // title-substring nor broad tag matching is precise — they match the whole
+  // catalog. Strategy: pull a generous candidate set via tag:keyword (exact),
+  // then post-filter by the product-name prefix (the portion before " – " or
+  // " | " in the title — Moonraven titles all follow "Name – brand suffix").
+  const clauses = keywords.flatMap((k) => [`tag:${k}`]);
   const q = `status:active AND (${clauses.join(' OR ')})`;
   const query = `
     query SearchProducts($q: String!, $first: Int!) {
@@ -432,8 +425,19 @@ export async function searchProductsByKeyword(keywords: string[], first = 12): P
       }
     }
   `;
-  const data = await shopify<{ products: { nodes: Product[] } }>(query, { q, first });
-  return data.products.nodes;
+  const data = await shopify<{ products: { nodes: Product[] } }>(query, {
+    q,
+    first: Math.max(first * 6, 60),
+  });
+
+  const lowerKeywords = keywords.map((k) => k.toLowerCase());
+  const filtered = data.products.nodes.filter((p) => {
+    // Take the part of the title before any " – ", " — ", or " | " separator —
+    // that's the actual product name, before the brand/descriptive suffix.
+    const productName = p.title.split(/\s[–—|]\s/)[0]?.toLowerCase() ?? '';
+    return lowerKeywords.some((k) => productName.includes(k));
+  });
+  return filtered.slice(0, first);
 }
 
 export async function getAllArticles(): Promise<Article[]> {
