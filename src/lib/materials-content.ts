@@ -1,8 +1,5 @@
-import sterlingSilver from '@/content/materials/sterling-silver.json';
-import oxidizedBronze from '@/content/materials/oxidized-bronze.json';
-import solidBronze from '@/content/materials/solid-bronze.json';
-import whiteBronze from '@/content/materials/white-bronze.json';
-import copper from '@/content/materials/copper.json';
+// Static imports — populated as the materials generator produces JSONs.
+// Empty for now; will update.
 
 export type MaterialContent = {
   slug: string;
@@ -15,13 +12,7 @@ export type MaterialContent = {
   faq: Array<{ q: string; a: string }>;
 };
 
-const CONTENT_MAP: Record<string, MaterialContent> = {
-  'sterling-silver': sterlingSilver as MaterialContent,
-  'oxidized-bronze': oxidizedBronze as MaterialContent,
-  'solid-bronze': solidBronze as MaterialContent,
-  'white-bronze': whiteBronze as MaterialContent,
-  copper: copper as MaterialContent,
-};
+const CONTENT_MAP: Record<string, MaterialContent> = {};
 
 export function getMaterialContent(slug: string): MaterialContent | null {
   return CONTENT_MAP[slug] ?? null;
