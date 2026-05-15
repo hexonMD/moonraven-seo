@@ -20,8 +20,17 @@ const nextConfig: NextConfig = {
   // SEO surfaces on moonraven.com without disturbing the existing theme.
   async rewrites() {
     return {
-      beforeFiles: [],
+      // Run before filesystem routing — explicitly proxy the home (Next has
+      // no page.tsx for `/`, but fallback rewrites don't seem to fire for
+      // the home cleanly via the OpenNext adapter).
+      beforeFiles: [
+        {
+          source: '/',
+          destination: 'https://michael-doyle.myshopify.com/',
+        },
+      ],
       afterFiles: [],
+      // Catch every other unmatched path.
       fallback: [
         {
           source: '/:path*',
