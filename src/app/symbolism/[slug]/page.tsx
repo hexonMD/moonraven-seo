@@ -7,7 +7,11 @@ import { getSymbol, SYMBOLS } from '@/lib/symbolism-config';
 import { getSymbolContent, getAllSymbolContentSlugs } from '@/lib/symbolism-content';
 
 export const revalidate = 3600;
-export const dynamicParams = false;
+// Let unknown slugs hit the page (notFound() handles the truly missing case).
+// Build-time SSG via generateStaticParams pre-renders the published ones; the
+// rest ISR on first request. Avoids the failure mode where dynamicParams=false
+// + a stale build means no slugs are ever rendered.
+export const dynamicParams = true;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://moonraven.com';
 
