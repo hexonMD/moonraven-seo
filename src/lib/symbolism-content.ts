@@ -4,6 +4,12 @@
 import ravenContent from '@/content/symbolism/raven.json';
 import skullContent from '@/content/symbolism/skull.json';
 import antlerContent from '@/content/symbolism/antler.json';
+import snakeContent from '@/content/symbolism/snake.json';
+import wolfContent from '@/content/symbolism/wolf.json';
+import norseRunesContent from '@/content/symbolism/norse-runes.json';
+import celticKnotContent from '@/content/symbolism/celtic-knot.json';
+import boneContent from '@/content/symbolism/bone.json';
+import eyeContent from '@/content/symbolism/eye.json';
 
 export type SymbolContent = {
   slug: string;
@@ -21,6 +27,12 @@ const CONTENT_MAP: Record<string, SymbolContent> = {
   raven: ravenContent as SymbolContent,
   skull: skullContent as SymbolContent,
   antler: antlerContent as SymbolContent,
+  snake: snakeContent as SymbolContent,
+  wolf: wolfContent as SymbolContent,
+  'norse-runes': norseRunesContent as SymbolContent,
+  'celtic-knot': celticKnotContent as SymbolContent,
+  bone: boneContent as SymbolContent,
+  eye: eyeContent as SymbolContent,
 };
 
 export function getSymbolContent(slug: string): SymbolContent | null {
