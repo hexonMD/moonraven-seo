@@ -408,10 +408,20 @@ export async function getAllPages(): Promise<Page[]> {
 }
 
 export async function searchProductsByKeyword(keywords: string[], first = 12): Promise<Product[]> {
-  // Build a Shopify product search query of the form:
-  //   status:active AND (title:*raven* OR tag:raven OR title:*crow* OR tag:crow)
-  // Shopify's search syntax supports wildcards on title and exact match on tag.
-  const clauses = keywords.flatMap((k) => [`title:*${k}*`, `tag:${k}`]);
+  // Tag-only search. Title-based matching wildcard-matched the brand name
+  // "by Moon Raven Designs" in every product title, so `title:*raven*`
+  // returned the whole catalog. Moonraven tags products with descriptive
+  // symbol tags (raven, crow, skull, etc.) and per-piece tags like
+  // "raven jewelry", "raven necklace" — those are precise.
+  const clauses = keywords.flatMap((k) => [
+    `tag:${k}`,
+    `tag:"${k} jewelry"`,
+    `tag:"${k} necklace"`,
+    `tag:"${k} pendant"`,
+    `tag:"${k} ring"`,
+    `tag:"${k} earrings"`,
+    `tag:"${k} symbolism"`,
+  ]);
   const q = `status:active AND (${clauses.join(' OR ')})`;
   const query = `
     query SearchProducts($q: String!, $first: Int!) {
