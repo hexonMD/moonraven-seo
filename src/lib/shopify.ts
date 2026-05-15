@@ -434,7 +434,10 @@ export async function searchProductsByKeyword(keywords: string[], first = 12): P
   const filtered = data.products.nodes.filter((p) => {
     // Take the part of the title before any " – ", " — ", or " | " separator —
     // that's the actual product name, before the brand/descriptive suffix.
-    const productName = p.title.split(/\s[–—|]\s/)[0]?.toLowerCase() ?? '';
+    // Moonraven titles use mixed separators: en-dash "–", em-dash "—",
+    // pipe "|", or a regular hyphen "-" with surrounding spaces. Split on
+    // any of those.
+    const productName = p.title.split(/\s[-–—|]\s/)[0]?.toLowerCase() ?? '';
     return lowerKeywords.some((k) => productName.includes(k));
   });
   return filtered.slice(0, first);
