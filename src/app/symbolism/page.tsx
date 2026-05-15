@@ -35,9 +35,8 @@ export default function SymbolismIndex() {
             href={`/symbolism/${s.slug}`}
             className="block border border-[var(--color-border)] rounded-lg p-6 hover:border-[var(--color-accent)] transition bg-white"
           >
-            <p className="eyebrow mb-2">{s.label}</p>
-            <p className="font-display text-xl font-bold tracking-wide uppercase">
-              {s.title.replace(' Symbolism in Jewelry', '')}
+            <p className="font-display text-2xl font-bold tracking-wide uppercase">
+              {s.label}
             </p>
             <p className="mt-3 text-sm text-[var(--color-text-soft)] leading-relaxed">{s.hook}</p>
           </Link>
