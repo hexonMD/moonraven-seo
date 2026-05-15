@@ -88,26 +88,33 @@ export default async function HomePage() {
               Shop by collection
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {collections.slice(0, 6).map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/collections/${c.handle}`}
-                  className="group relative aspect-[4/3] overflow-hidden bg-[var(--color-bg-soft)]"
-                >
-                  {c.image ? (
+              {collections
+                .filter((c) => c.handle !== 'frontpage' && c.handle !== 'all')
+                .map((c) => {
+                  const fallbackProductImage = c.products?.nodes?.[0]?.featuredImage?.url ?? null;
+                  const imageUrl = c.image?.url ?? fallbackProductImage;
+                  return { c, imageUrl };
+                })
+                .filter(({ imageUrl }) => !!imageUrl)
+                .slice(0, 6)
+                .map(({ c, imageUrl }) => (
+                  <Link
+                    key={c.id}
+                    href={`/collections/${c.handle}`}
+                    className="group relative aspect-[4/3] overflow-hidden bg-[var(--color-bg-soft)]"
+                  >
                     <Image
-                      src={c.image.url}
-                      alt={c.image.altText ?? c.title}
+                      src={imageUrl as string}
+                      alt={c.image?.altText ?? c.title}
                       fill
                       sizes="(min-width: 768px) 33vw, 50vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                  ) : null}
-                  <div className="absolute left-0 bottom-0 right-0 bg-black/60 text-white p-3">
-                    <p className="eyebrow !text-white">{c.title}</p>
-                  </div>
-                </Link>
-              ))}
+                    <div className="absolute left-0 bottom-0 right-0 bg-black/60 text-white p-3">
+                      <p className="eyebrow !text-white">{c.title}</p>
+                    </div>
+                  </Link>
+                ))}
             </div>
           </div>
         </section>

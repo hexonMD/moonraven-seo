@@ -18,25 +18,23 @@
   --color-muted: var(--color-text-soft);
   --color-accent: var(--color-accent);
   --color-border: var(--color-border);
-  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
-  --font-sans: "DM Sans", system-ui, sans-serif;
 }
 
 html, body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: "DM Sans", system-ui, sans-serif;
+  font-family: var(--font-sans, "DM Sans"), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .font-display {
-  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-family: var(--font-display, "Bricolage Grotesque"), system-ui, sans-serif;
   letter-spacing: 0.02em;
 }
 
 .eyebrow {
-  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-family: var(--font-display, "Bricolage Grotesque"), system-ui, sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 700;

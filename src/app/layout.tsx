@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Bricolage_Grotesque, DM_Sans } from 'next/font/google';
 import './globals.css';
@@ -7,13 +8,18 @@ const display = Bricolage_Grotesque({
   subsets: ['latin'],
   variable: '--font-display',
   display: 'swap',
+  weight: ['400', '600', '700', '800'],
 });
 
 const sans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
+  weight: ['400', '500', '700'],
 });
+
+const LOGO_URL =
+  'https://cdn.shopify.com/s/files/1/0204/2526/files/MR_Logo3_Left_BLK_418c00c4-d468-41d9-ba8e-a5c938777ed2.png';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://moonraven.com';
 const SHOP_URL = process.env.NEXT_PUBLIC_SHOP_URL ?? 'https://shop.moonraven.com';
@@ -45,13 +51,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
         <header className="bg-[var(--color-bg)] hairline">
           <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="inline-block w-7 h-7 rounded-full border border-[var(--color-text)] relative">
-                <span className="absolute inset-1 rounded-full bg-[var(--color-text)] [clip-path:polygon(50%_0,100%_0,100%_100%,50%_100%)]" />
-              </span>
-              <span className="font-display text-base font-bold tracking-[0.18em]">
-                MOON RAVEN
-              </span>
+            <Link href="/" className="flex items-center">
+              <Image
+                src={LOGO_URL}
+                alt="Moon Raven Designs"
+                width={210}
+                height={56}
+                priority
+                unoptimized
+                className="h-10 w-auto"
+              />
             </Link>
             <nav className="hidden md:flex items-center gap-8 eyebrow">
               <Link href="/collections/all" className="hover:text-[var(--color-accent)]">
