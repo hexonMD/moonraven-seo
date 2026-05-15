@@ -5,6 +5,11 @@ import { getActiveProducts, getAllCollections } from '@/lib/shopify';
 
 export const revalidate = 1800;
 
+// Brand hero — pulled from the live moonraven.com production storefront
+// so the home page never depends on a Shopify Admin API success to render.
+const HERO_IMAGE =
+  'https://cdn.shopify.com/s/files/1/0204/2526/files/IMG_8214.jpg?v=1648052681&width=1728';
+
 export default async function HomePage() {
   const [products, collections] = await Promise.all([
     getActiveProducts(12).catch((err: unknown) => {
@@ -17,25 +22,19 @@ export default async function HomePage() {
     }),
   ]);
 
-  const heroProduct = products[0];
-  const heroImage = heroProduct?.featuredImage?.url ?? heroProduct?.images.nodes[0]?.url ?? null;
-
   return (
     <>
       <section className="relative w-full overflow-hidden bg-[var(--color-bg-soft)]">
         <div className="relative h-[70vh] min-h-[480px] max-h-[720px] w-full">
-          {heroImage ? (
-            <Image
-              src={heroImage}
-              alt="Handcrafted Moon Raven jewelry"
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-200 via-stone-300 to-stone-500" />
-          )}
+          <Image
+            src={HERO_IMAGE}
+            alt="Moon Raven Designs — handcrafted jewelry on Vancouver Island"
+            fill
+            priority
+            sizes="100vw"
+            unoptimized
+            className="object-cover object-center"
+          />
           <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-black/15 to-transparent" />
           <div className="relative mx-auto max-w-6xl px-6 h-full flex items-end pb-16">
             <div className="text-white max-w-lg">
