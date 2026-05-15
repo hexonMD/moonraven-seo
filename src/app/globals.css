@@ -20,8 +20,8 @@
   --color-border: var(--color-border);
 }
 
-html, body {
-  background: var(--color-bg);
+/* Scope to .pseo-content — Shopify's Broadcast theme owns body/html styles. */
+.pseo-content {
   color: var(--color-text);
   font-family: var(--font-sans, "DM Sans"), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;

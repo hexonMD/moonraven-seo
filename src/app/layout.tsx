@@ -23,6 +23,11 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const shell = await getShopifyShell();
+  // Shopify Broadcast theme expects: template-* class on body, an aos-initialized
+  // hook, and a <main id="MainContent" class="main-content"> wrapper. We treat
+  // every pSEO page as a "page" template so the theme renders consistently.
+  const bodyClass = (shell.bodyClass || 'template-page grid-classic aos-initialized')
+    .replace(/template-\S+/g, 'template-page');
   return (
     <html lang="en">
       <head>
@@ -30,12 +35,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: shell.headExtras }} />
         ) : null}
       </head>
-      <body className={shell.bodyClass || ''}>
+      <body className={bodyClass} data-animations="true">
         {shell.header ? (
           <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: shell.header }} />
         ) : null}
-        <main role="main" className="mx-auto">
-          {children}
+        <main role="main" id="MainContent" className="main-content">
+          <div className="shopify-section">
+            <div className="page-width pseo-content">{children}</div>
+          </div>
         </main>
         {shell.footer ? (
           <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: shell.footer }} />
