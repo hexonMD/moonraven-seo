@@ -1,5 +1,9 @@
-import fs from 'node:fs';
-import path from 'node:path';
+// Static imports so the bundler embeds each JSON in the build output.
+// Filesystem reads via fs.readFileSync don't work on Cloudflare Workers
+// runtime — the data dir isn't on the worker's filesystem after bundling.
+import ravenContent from '@/content/symbolism/raven.json';
+import skullContent from '@/content/symbolism/skull.json';
+import antlerContent from '@/content/symbolism/antler.json';
 
 export type SymbolContent = {
   slug: string;
@@ -12,23 +16,17 @@ export type SymbolContent = {
   faq: Array<{ q: string; a: string }>;
 };
 
-const CONTENT_DIR = path.join(process.cwd(), 'src', 'content', 'symbolism');
+// As we add more symbols, just import + append here.
+const CONTENT_MAP: Record<string, SymbolContent> = {
+  raven: ravenContent as SymbolContent,
+  skull: skullContent as SymbolContent,
+  antler: antlerContent as SymbolContent,
+};
 
 export function getSymbolContent(slug: string): SymbolContent | null {
-  try {
-    const file = path.join(CONTENT_DIR, `${slug}.json`);
-    if (!fs.existsSync(file)) return null;
-    const raw = fs.readFileSync(file, 'utf-8');
-    return JSON.parse(raw) as SymbolContent;
-  } catch {
-    return null;
-  }
+  return CONTENT_MAP[slug] ?? null;
 }
 
 export function getAllSymbolContentSlugs(): string[] {
-  if (!fs.existsSync(CONTENT_DIR)) return [];
-  return fs
-    .readdirSync(CONTENT_DIR)
-    .filter((f) => f.endsWith('.json') && !f.endsWith('.brief.json'))
-    .map((f) => f.replace(/\.json$/, ''));
+  return Object.keys(CONTENT_MAP);
 }
