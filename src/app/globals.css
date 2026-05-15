@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-bg: #fcfbf9;
+  --color-bg-soft: #f5f1eb;
+  --color-text: #212121;
+  --color-text-soft: #6b6b6b;
+  --color-accent: #a89878;
+  --color-accent-dark: #8a7b5e;
+  --color-border: #e4ded4;
+  --color-cta-bg: #1a1a1a;
+  --color-cta-fg: #ffffff;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-muted: var(--color-text-soft);
+  --color-accent: var(--color-accent);
+  --color-border: var(--color-border);
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: "DM Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.font-display {
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.eyebrow {
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.btn-primary {
+  background: var(--color-cta-bg);
+  color: var(--color-cta-fg);
+  border-radius: 9999px;
+  padding: 0.85rem 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 200ms;
+}
+.btn-primary:hover {
+  background: #000;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-accent);
+  border-radius: 9999px;
+  padding: 0.85rem 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 200ms, color 200ms;
+}
+.btn-outline:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.product-link {
+  display: block;
+  background: #fff;
+  border-radius: 0;
+  border: 1px solid transparent;
+  transition: border-color 200ms;
+}
+.product-link:hover {
+  border-color: var(--color-border);
+}
+
+.hairline {
+  border-bottom: 1px solid var(--color-border);
 }

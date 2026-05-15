@@ -1,65 +1,140 @@
-import Image from "next/image";
+import Image from 'next/image';
+import Link from 'next/link';
+import { ProductCard } from '@/components/ProductCard';
+import { getActiveProducts, getAllCollections } from '@/lib/shopify';
 
-export default function Home() {
+export const revalidate = 1800;
+
+export default async function HomePage() {
+  const [products, collections] = await Promise.all([
+    getActiveProducts(12).catch((err: unknown) => {
+      console.error('[home] products', err);
+      return [];
+    }),
+    getAllCollections(8).catch((err: unknown) => {
+      console.error('[home] collections', err);
+      return [];
+    }),
+  ]);
+
+  const heroProduct = products[0];
+  const heroImage = heroProduct?.featuredImage?.url ?? heroProduct?.images.nodes[0]?.url ?? null;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+    <>
+      <section className="relative w-full overflow-hidden bg-[var(--color-bg-soft)]">
+        <div className="relative h-[70vh] min-h-[480px] max-h-[720px] w-full">
+          {heroImage ? (
             <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              src={heroImage}
+              alt="Handcrafted Moon Raven jewelry"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-stone-200 via-stone-300 to-stone-500" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-black/15 to-transparent" />
+          <div className="relative mx-auto max-w-6xl px-6 h-full flex items-end pb-16">
+            <div className="text-white max-w-lg">
+              <h1 className="font-display text-5xl md:text-6xl font-bold tracking-[0.04em] uppercase leading-[1.05]">
+                Wear your nature
+              </h1>
+              <p className="mt-3 text-white/85">
+                Where wild meets refined.
+              </p>
+              <div className="mt-6">
+                <Link href="/collections/all" className="btn-primary">
+                  Explore
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="bg-[var(--color-bg-soft)] py-16">
+        <div className="mx-auto max-w-2xl px-6 text-center">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 32 32"
+            className="mx-auto mb-4 w-7 h-7 fill-[var(--color-accent)]"
+          >
+            <path d="M16 2l2.6 6.4 6.4 2.6-5.2 4 1.6 6.6-5.4-3.6L10.6 22l1.6-6.6-5.2-4 6.4-2.6L16 2z" />
+          </svg>
+          <p className="eyebrow mb-4">Proudly created in Canada</p>
+          <p className="text-[var(--color-text-soft)] leading-relaxed">
+            Every piece is thoughtfully designed and made by us in Canada with care, quality, and
+            attention to detail. Inspired by nature, shadow, and story, our jewelry is created
+            to be meaningful, bold, and made to last — including pieces that honor what matters most.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3 justify-center">
+            <Link href="/collections/memorial" className="btn-primary">
+              Shop Memorial Jewelry
+            </Link>
+            <Link href="/collections/all" className="btn-outline">
+              Browse All Collections
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {collections.length > 0 ? (
+        <section className="py-16">
+          <div className="mx-auto max-w-6xl px-6">
+            <h2 className="font-display text-3xl md:text-4xl uppercase tracking-[0.1em] font-bold text-center mb-10">
+              Shop by collection
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {collections.slice(0, 6).map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/collections/${c.handle}`}
+                  className="group relative aspect-[4/3] overflow-hidden bg-[var(--color-bg-soft)]"
+                >
+                  {c.image ? (
+                    <Image
+                      src={c.image.url}
+                      alt={c.image.altText ?? c.title}
+                      fill
+                      sizes="(min-width: 768px) 33vw, 50vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : null}
+                  <div className="absolute left-0 bottom-0 right-0 bg-black/60 text-white p-3">
+                    <p className="eyebrow !text-white">{c.title}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {products.length > 0 ? (
+        <section className="py-16">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="flex items-baseline justify-between mb-8">
+              <h2 className="font-display text-2xl md:text-3xl uppercase tracking-[0.1em] font-bold">
+                New &amp; featured
+              </h2>
+              <Link
+                href="/collections/all"
+                className="eyebrow text-[var(--color-text-soft)] hover:text-[var(--color-text)]"
+              >
+                View all →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10">
+              {products.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
