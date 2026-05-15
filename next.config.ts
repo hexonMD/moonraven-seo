@@ -34,10 +34,9 @@ const nextConfig: NextConfig = {
 
 export default nextConfig;
 
-// CF auto-injects this; swallow the error when the package isn't installed
-// locally so `npm run build` works for sanity-checks outside the deploy path.
-// @ts-expect-error — module only present in CF build env
+// CF auto-injects this. Local `npm run build` will TS-error since the
+// package isn't installed locally — that's expected; only the CF build
+// matters here.
 import('@opennextjs/cloudflare')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  .then((m: any) => m.initOpenNextCloudflareForDev())
+  .then((m) => m.initOpenNextCloudflareForDev())
   .catch(() => undefined);
