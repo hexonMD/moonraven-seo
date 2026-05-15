@@ -7,10 +7,11 @@ export const dynamicParams = true;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://moonraven.com';
 
-export async function generateStaticParams() {
-  const pages = await getAllPages().catch(() => []);
-  return pages.map((p) => ({ handle: p.handle }));
+// ISR-on-demand to keep build fast.
+export async function generateStaticParams(): Promise<{ handle: string }[]> {
+  return [];
 }
+void getAllPages;
 
 export async function generateMetadata({
   params,

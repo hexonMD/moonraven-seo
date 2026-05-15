@@ -5,6 +5,7 @@ import {
   getAllPages,
   getAllArticles,
 } from '@/lib/shopify';
+import { getAllSymbolContentSlugs } from '@/lib/symbolism-content';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://moonraven.com';
 
@@ -21,7 +22,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, changeFrequency: 'daily', priority: 1.0 },
     { url: `${SITE_URL}/collections/all`, changeFrequency: 'daily', priority: 0.9 },
+    { url: `${SITE_URL}/symbolism`, changeFrequency: 'weekly', priority: 0.8 },
   ];
+
+  const symbolismEntries: MetadataRoute.Sitemap = getAllSymbolContentSlugs().map((slug) => ({
+    url: `${SITE_URL}/symbolism/${slug}`,
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }));
 
   const productEntries: MetadataRoute.Sitemap = products.map((h) => ({
     url: `${SITE_URL}/products/${h}`,
@@ -49,5 +57,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...productEntries, ...collectionEntries, ...pageEntries, ...articleEntries];
+  return [
+    ...staticRoutes,
+    ...symbolismEntries,
+    ...productEntries,
+    ...collectionEntries,
+    ...pageEntries,
+    ...articleEntries,
+  ];
 }

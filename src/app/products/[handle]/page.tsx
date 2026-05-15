@@ -14,10 +14,14 @@ export const dynamicParams = true;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://moonraven.com';
 
-export async function generateStaticParams() {
-  const handles = await getAllProductHandles().catch(() => [] as string[]);
-  return handles.map((handle) => ({ handle }));
+// Skip build-time SSG for product detail pages — Shopify's Admin API
+// cost-throttle (100 pts/sec) can't keep up with 200+ pages building in
+// parallel. Pages render on first request and are cached for `revalidate`
+// seconds via ISR. Google's crawler triggers generation just fine.
+export async function generateStaticParams(): Promise<{ handle: string }[]> {
+  return [];
 }
+void getAllProductHandles;
 
 export async function generateMetadata({
   params,

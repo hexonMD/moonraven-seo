@@ -9,10 +9,11 @@ export const dynamicParams = true;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://moonraven.com';
 
-export async function generateStaticParams() {
-  const handles = await getAllCollectionHandles().catch(() => [] as string[]);
-  return handles.map((handle) => ({ handle }));
+// ISR-on-demand — see comment in /products/[handle]/page.tsx.
+export async function generateStaticParams(): Promise<{ handle: string }[]> {
+  return [];
 }
+void getAllCollectionHandles;
 
 export async function generateMetadata({
   params,

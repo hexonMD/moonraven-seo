@@ -69,39 +69,80 @@ type GqlResponse<T> = {
   extensions?: { cost?: unknown };
 };
 
+// Limit concurrent Shopify requests to avoid Admin API throttling.
+// Admin GraphQL costs ~2000 points/min refilled at 100/sec; with ~50-point
+// queries we can sustain ~2/sec safely. 3 in flight keeps us under that.
+const MAX_CONCURRENT = 3;
+let inFlight = 0;
+const waitQueue: Array<() => void> = [];
+
+async function acquireSlot(): Promise<void> {
+  if (inFlight < MAX_CONCURRENT) {
+    inFlight++;
+    return;
+  }
+  await new Promise<void>((resolve) => waitQueue.push(resolve));
+  inFlight++;
+}
+
+function releaseSlot(): void {
+  inFlight--;
+  const next = waitQueue.shift();
+  if (next) next();
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export async function shopify<T>(
   query: string,
   variables?: Record<string, unknown>,
   options: { revalidate?: number } = {},
 ): Promise<T> {
-  const token = await getAccessToken();
-  const res = await fetch(GRAPHQL_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': token,
-    },
-    body: JSON.stringify({ query, variables }),
-    next: { revalidate: options.revalidate ?? 900 },
-  });
+  await acquireSlot();
+  try {
+    const token = await getAccessToken();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const res = await fetch(GRAPHQL_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token,
+        },
+        body: JSON.stringify({ query, variables }),
+        next: { revalidate: options.revalidate ?? 900 },
+      });
 
-  if (res.status === 401) {
-    tokenCache = null;
-    throw new Error(`Shopify 401 (token rejected) — will retry on next call`);
-  }
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Shopify ${res.status}: ${body.slice(0, 500)}`);
-  }
+      if (res.status === 401) {
+        tokenCache = null;
+        throw new Error(`Shopify 401 (token rejected) — will retry on next call`);
+      }
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Shopify ${res.status}: ${body.slice(0, 500)}`);
+      }
 
-  const json = (await res.json()) as GqlResponse<T>;
-  if (json.errors?.length) {
-    throw new Error(`Shopify GraphQL: ${json.errors.map((e) => e.message).join('; ')}`);
+      const json = (await res.json()) as GqlResponse<T>;
+      // Throttled? Backoff + retry. Cost throttling returns a 200 with errors[].
+      const throttled = json.errors?.some((e) => /throttled/i.test(e.message));
+      if (throttled && attempt < 4) {
+        const wait = 1000 * (attempt + 1) ** 2;
+        await sleep(wait);
+        continue;
+      }
+      if (json.errors?.length) {
+        throw new Error(`Shopify GraphQL: ${json.errors.map((e) => e.message).join('; ')}`);
+      }
+      if (!json.data) {
+        throw new Error('Shopify GraphQL: empty response');
+      }
+      return json.data;
+    }
+    throw new Error('Shopify GraphQL: exhausted retries on throttling');
+  } finally {
+    releaseSlot();
   }
-  if (!json.data) {
-    throw new Error('Shopify GraphQL: empty response');
-  }
-  return json.data;
 }
 
 export type Money = { amount: string; currencyCode: string };
@@ -223,7 +264,14 @@ async function findOneByHandle<T extends { handle: string }>(
   return nodes[0] ?? null;
 }
 
+const productCache = new Map<number, Promise<Product[]>>();
+
 export async function getActiveProducts(first = 50): Promise<Product[]> {
+  // Module-level memo: every page that asks for "first 250 active products"
+  // gets the same in-flight promise, so a build with N symbolism pages
+  // only fires one Shopify request instead of N.
+  const cached = productCache.get(first);
+  if (cached) return cached;
   const query = `
     query GetProducts($first: Int!) {
       products(first: $first, query: "status:active", sortKey: UPDATED_AT, reverse: true) {
@@ -233,8 +281,13 @@ export async function getActiveProducts(first = 50): Promise<Product[]> {
       }
     }
   `;
-  const data = await shopify<{ products: { nodes: Product[] } }>(query, { first });
-  return data.products.nodes;
+  const promise = shopify<{ products: { nodes: Product[] } }>(query, { first }).then(
+    (data) => data.products.nodes,
+  );
+  productCache.set(first, promise);
+  // Eject failed promises so retries don't get stuck on a rejection.
+  promise.catch(() => productCache.delete(first));
+  return promise;
 }
 
 type HandlePageResponse = {
@@ -352,6 +405,25 @@ export async function getAllPages(): Promise<Page[]> {
   `;
   const data = await shopify<{ pages: { nodes: Page[] } }>(query);
   return data.pages.nodes;
+}
+
+export async function searchProductsByKeyword(keywords: string[], first = 12): Promise<Product[]> {
+  // Build a Shopify product search query of the form:
+  //   status:active AND (title:*raven* OR tag:raven OR title:*crow* OR tag:crow)
+  // Shopify's search syntax supports wildcards on title and exact match on tag.
+  const clauses = keywords.flatMap((k) => [`title:*${k}*`, `tag:${k}`]);
+  const q = `status:active AND (${clauses.join(' OR ')})`;
+  const query = `
+    query SearchProducts($q: String!, $first: Int!) {
+      products(first: $first, query: $q, sortKey: UPDATED_AT, reverse: true) {
+        nodes {
+          ${PRODUCT_FIELDS}
+        }
+      }
+    }
+  `;
+  const data = await shopify<{ products: { nodes: Product[] } }>(query, { q, first });
+  return data.products.nodes;
 }
 
 export async function getAllArticles(): Promise<Article[]> {
