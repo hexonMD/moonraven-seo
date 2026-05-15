@@ -1,4 +1,7 @@
-// Static imports — populated as the materials generator produces JSONs.
+import sterlingSilver from '@/content/materials/sterling-silver.json';
+import oxidizedBronze from '@/content/materials/oxidized-bronze.json';
+import solidBronze from '@/content/materials/solid-bronze.json';
+import whiteBronze from '@/content/materials/white-bronze.json';
 import copper from '@/content/materials/copper.json';
 
 export type MaterialContent = {
@@ -13,6 +16,10 @@ export type MaterialContent = {
 };
 
 const CONTENT_MAP: Record<string, MaterialContent> = {
+  'sterling-silver': sterlingSilver as MaterialContent,
+  'oxidized-bronze': oxidizedBronze as MaterialContent,
+  'solid-bronze': solidBronze as MaterialContent,
+  'white-bronze': whiteBronze as MaterialContent,
   copper: copper as MaterialContent,
 };
 

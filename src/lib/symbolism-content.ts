@@ -1,6 +1,3 @@
-// Static imports so the bundler embeds each JSON in the build output.
-// Filesystem reads via fs.readFileSync don't work on Cloudflare Workers
-// runtime — the data dir isn't on the worker's filesystem after bundling.
 import ravenContent from '@/content/symbolism/raven.json';
 import skullContent from '@/content/symbolism/skull.json';
 import antlerContent from '@/content/symbolism/antler.json';
@@ -12,6 +9,7 @@ import boneContent from '@/content/symbolism/bone.json';
 import eyeContent from '@/content/symbolism/eye.json';
 import horseContent from '@/content/symbolism/horse.json';
 import moonContent from '@/content/symbolism/moon.json';
+import featherContent from '@/content/symbolism/feather.json';
 
 export type SymbolContent = {
   slug: string;
@@ -24,7 +22,6 @@ export type SymbolContent = {
   faq: Array<{ q: string; a: string }>;
 };
 
-// As we add more symbols, just import + append here.
 const CONTENT_MAP: Record<string, SymbolContent> = {
   raven: ravenContent as SymbolContent,
   skull: skullContent as SymbolContent,
@@ -37,6 +34,7 @@ const CONTENT_MAP: Record<string, SymbolContent> = {
   eye: eyeContent as SymbolContent,
   horse: horseContent as SymbolContent,
   moon: moonContent as SymbolContent,
+  feather: featherContent as SymbolContent,
 };
 
 export function getSymbolContent(slug: string): SymbolContent | null {
