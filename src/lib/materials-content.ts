@@ -1,5 +1,5 @@
 // Static imports — populated as the materials generator produces JSONs.
-// Empty for now; will update.
+import copper from '@/content/materials/copper.json';
 
 export type MaterialContent = {
   slug: string;
@@ -12,7 +12,9 @@ export type MaterialContent = {
   faq: Array<{ q: string; a: string }>;
 };
 
-const CONTENT_MAP: Record<string, MaterialContent> = {};
+const CONTENT_MAP: Record<string, MaterialContent> = {
+  copper: copper as MaterialContent,
+};
 
 export function getMaterialContent(slug: string): MaterialContent | null {
   return CONTENT_MAP[slug] ?? null;

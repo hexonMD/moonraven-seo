@@ -10,6 +10,8 @@ import norseRunesContent from '@/content/symbolism/norse-runes.json';
 import celticKnotContent from '@/content/symbolism/celtic-knot.json';
 import boneContent from '@/content/symbolism/bone.json';
 import eyeContent from '@/content/symbolism/eye.json';
+import horseContent from '@/content/symbolism/horse.json';
+import moonContent from '@/content/symbolism/moon.json';
 
 export type SymbolContent = {
   slug: string;
@@ -33,6 +35,8 @@ const CONTENT_MAP: Record<string, SymbolContent> = {
   'celtic-knot': celticKnotContent as SymbolContent,
   bone: boneContent as SymbolContent,
   eye: eyeContent as SymbolContent,
+  horse: horseContent as SymbolContent,
+  moon: moonContent as SymbolContent,
 };
 
 export function getSymbolContent(slug: string): SymbolContent | null {

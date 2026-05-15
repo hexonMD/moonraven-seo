@@ -5,6 +5,10 @@ import husband from '@/content/memorial/husband.json';
 import wife from '@/content/memorial/wife.json';
 import grandparent from '@/content/memorial/grandparent.json';
 import friend from '@/content/memorial/friend.json';
+import petDog from '@/content/memorial/pet-dog.json';
+import petHorse from '@/content/memorial/pet-horse.json';
+import petBird from '@/content/memorial/pet-bird.json';
+import petRabbit from '@/content/memorial/pet-rabbit.json';
 
 export type MemorialContent = {
   slug: string;
@@ -24,6 +28,10 @@ const CONTENT_MAP: Record<string, MemorialContent> = {
   wife: wife as MemorialContent,
   grandparent: grandparent as MemorialContent,
   friend: friend as MemorialContent,
+  'pet-dog': petDog as MemorialContent,
+  'pet-horse': petHorse as MemorialContent,
+  'pet-bird': petBird as MemorialContent,
+  'pet-rabbit': petRabbit as MemorialContent,
 };
 
 export function getMemorialContent(slug: string): MemorialContent | null {
