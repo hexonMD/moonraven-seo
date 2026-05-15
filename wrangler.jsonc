@@ -21,5 +21,15 @@
   },
   "observability": {
     "enabled": true
+  },
+  // Public env vars persisted in repo so CF's auto-deploy never drops them.
+  // SHOPIFY_APP_CLIENT_SECRET stays in the dashboard as an encrypted secret.
+  "vars": {
+    "SHOPIFY_STORE_DOMAIN": "michael-doyle.myshopify.com",
+    "SHOPIFY_APP_CLIENT_ID": "b3675781fa19ef6de00ea1f7121ee504",
+    "SHOPIFY_API_VERSION": "2025-07",
+    "NEXT_PUBLIC_SITE_URL": "https://moonraven-seo.misty-shadow-a537.workers.dev",
+    "NEXT_PUBLIC_SHOP_URL": "https://moonraven.com",
+    "NODE_VERSION": "20"
   }
 }
