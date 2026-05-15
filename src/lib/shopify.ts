@@ -1,12 +1,67 @@
-const STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN ?? 'moonraven.myshopify.com';
+const STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN ?? 'michael-doyle.myshopify.com';
 const API_VERSION = process.env.SHOPIFY_API_VERSION ?? '2025-07';
-const ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN ?? '';
+const CLIENT_ID = process.env.SHOPIFY_APP_CLIENT_ID ?? '';
+const CLIENT_SECRET = process.env.SHOPIFY_APP_CLIENT_SECRET ?? '';
 
-if (!ADMIN_TOKEN) {
-  console.warn('[shopify] SHOPIFY_ADMIN_TOKEN is not set — Shopify queries will fail');
+if (!CLIENT_ID || !CLIENT_SECRET) {
+  console.warn(
+    '[shopify] SHOPIFY_APP_CLIENT_ID / SHOPIFY_APP_CLIENT_SECRET not set — Admin API calls will fail',
+  );
 }
 
-const ENDPOINT = `https://${STORE_DOMAIN}/admin/api/${API_VERSION}/graphql.json`;
+const GRAPHQL_ENDPOINT = `https://${STORE_DOMAIN}/admin/api/${API_VERSION}/graphql.json`;
+const TOKEN_ENDPOINT = `https://${STORE_DOMAIN}/admin/oauth/access_token`;
+
+type TokenResponse = {
+  access_token: string;
+  scope: string;
+  expires_in: number;
+};
+
+type TokenCache = { token: string; expiresAt: number };
+let tokenCache: TokenCache | null = null;
+let inflight: Promise<string> | null = null;
+
+const TOKEN_REFRESH_SKEW_MS = 60_000;
+
+async function mintToken(): Promise<string> {
+  // 1h fetch cache: well inside the token's 24h lifetime, and lets Next.js
+  // SSG product/collection pages instead of marking them dynamic.
+  const res = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      grant_type: 'client_credentials',
+    }),
+    next: { revalidate: 3600, tags: ['shopify-token'] },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Shopify token mint ${res.status}: ${body.slice(0, 300)}`);
+  }
+  const json = (await res.json()) as TokenResponse;
+  if (!json.access_token) {
+    throw new Error('Shopify token mint: no access_token in response');
+  }
+  tokenCache = {
+    token: json.access_token,
+    expiresAt: Date.now() + json.expires_in * 1000 - TOKEN_REFRESH_SKEW_MS,
+  };
+  return json.access_token;
+}
+
+async function getAccessToken(): Promise<string> {
+  if (tokenCache && tokenCache.expiresAt > Date.now()) {
+    return tokenCache.token;
+  }
+  if (inflight) return inflight;
+  inflight = mintToken().finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
 
 type GqlResponse<T> = {
   data?: T;
@@ -19,16 +74,21 @@ export async function shopify<T>(
   variables?: Record<string, unknown>,
   options: { revalidate?: number } = {},
 ): Promise<T> {
-  const res = await fetch(ENDPOINT, {
+  const token = await getAccessToken();
+  const res = await fetch(GRAPHQL_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': ADMIN_TOKEN,
+      'X-Shopify-Access-Token': token,
     },
     body: JSON.stringify({ query, variables }),
-    next: { revalidate: options.revalidate ?? 60 * 15 },
+    next: { revalidate: options.revalidate ?? 900 },
   });
 
+  if (res.status === 401) {
+    tokenCache = null;
+    throw new Error(`Shopify 401 (token rejected) — will retry on next call`);
+  }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Shopify ${res.status}: ${body.slice(0, 500)}`);
