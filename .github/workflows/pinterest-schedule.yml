@@ -1,0 +1,97 @@
+name: Pinterest auto-pin
+
+# Runs hourly. Each run posts up to 2 pins from scripts/pinterest-backlog.json
+# whose `scheduledFor` is in the past and status === 'pending'. The backlog
+# builder schedules ~4 pins/day so a one-hour cron has plenty of headroom.
+#
+# Required secrets (set in repo Settings → Secrets and variables → Actions):
+#   PINTEREST_APP_ID
+#   PINTEREST_APP_SECRET
+#   PINTEREST_REFRESH_TOKEN     — obtained once via scripts/pinterest-oauth-init.ts
+#
+# Optional secret:
+#   PINTEREST_REDIRECT_URI      — defaults to http://localhost:8765/callback
+#                                 (only used by the init script, not posting)
+#
+# The workflow:
+#   1. Writes the secrets to .env.pinterest.
+#   2. Runs scripts/pinterest-schedule.ts.
+#   3. If the script rotated the refresh_token (Pinterest sometimes does),
+#      the new value is read back from .env.pinterest and committed to the
+#      repo as an encrypted gh-secrets update via the gh CLI.
+#      → This step is opt-in via the PINTEREST_AUTO_ROTATE_SECRET secret.
+#
+# To pause auto-posting: disable this workflow in the Actions tab.
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # every hour, on the hour, UTC
+  workflow_dispatch:
+    inputs:
+      max:
+        description: Max pins to post in this run
+        required: false
+        default: '2'
+      dry_run:
+        description: 'Dry run only? (true/false)'
+        required: false
+        default: 'false'
+
+# Default permissions are minimal; the gh-secret rotation step asks for
+# `actions: write` only when PINTEREST_AUTO_ROTATE_SECRET is set.
+permissions:
+  contents: read
+
+concurrency:
+  group: pinterest-schedule
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Write .env.pinterest from secrets
+        run: |
+          umask 077
+          cat > .env.pinterest <<EOF
+          PINTEREST_APP_ID=${{ secrets.PINTEREST_APP_ID }}
+          PINTEREST_APP_SECRET=${{ secrets.PINTEREST_APP_SECRET }}
+          PINTEREST_REDIRECT_URI=${{ secrets.PINTEREST_REDIRECT_URI || 'http://localhost:8765/callback' }}
+          PINTEREST_REFRESH_TOKEN=${{ secrets.PINTEREST_REFRESH_TOKEN }}
+          EOF
+
+      - name: Run scheduler
+        env:
+          NODE_OPTIONS: --enable-source-maps
+        run: |
+          ARGS="--max ${{ github.event.inputs.max || '2' }}"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          npx tsx scripts/pinterest-schedule.ts $ARGS
+
+      # Optional: rotate the refresh_token secret if Pinterest issued a new one.
+      # Only runs when PINTEREST_AUTO_ROTATE_SECRET is set in the repo. The
+      # secret should contain a GitHub PAT with `repo` scope on this repo
+      # (a fine-grained PAT scoped to "Secrets: write" is enough).
+      - name: Rotate refresh_token secret if changed
+        if: ${{ env.GH_ROTATE_PAT != '' }}
+        env:
+          GH_ROTATE_PAT: ${{ secrets.PINTEREST_AUTO_ROTATE_SECRET }}
+        run: |
+          NEW=$(grep '^PINTEREST_REFRESH_TOKEN=' .env.pinterest | cut -d= -f2-)
+          OLD="${{ secrets.PINTEREST_REFRESH_TOKEN }}"
+          if [ -n "$NEW" ] && [ "$NEW" != "$OLD" ]; then
+            echo "Refresh token rotated — updating GitHub secret"
+            echo "$NEW" | GH_TOKEN="$GH_ROTATE_PAT" gh secret set PINTEREST_REFRESH_TOKEN --body -
+          fi
