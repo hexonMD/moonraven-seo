@@ -1,0 +1,287 @@
+#!/usr/bin/env tsx
+/**
+ * Two-stage pSEO generator for Holiday gift pages (Tier 3).
+ *
+ *  Output: src/content/holidays/<slug>.json + <slug>.brief.json
+ *
+ *  Usage:
+ *    GEMINI_API_KEY=... DEEPSEEK_API_KEY=... npx tsx scripts/gen-holidays.ts
+ *    GEMINI_API_KEY=... DEEPSEEK_API_KEY=... npx tsx scripts/gen-holidays.ts christmas-jewelry-meaningful-gift
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { HOLIDAYS, type HolidayConfig } from '../src/lib/holidays-config.js';
+import { gemini, stripJsonFences } from './lib-gemini.js';
+import { addUsage, enforceCap, getState } from './lib-budget.js';
+
+const BUDGET_CAP_USD = Number(process.env.GEMINI_BUDGET_CAP_USD ?? 10);
+
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY ?? '';
+if (!DEEPSEEK_KEY || !process.env.GEMINI_API_KEY) {
+  console.error('DEEPSEEK_API_KEY and GEMINI_API_KEY required');
+  process.exit(1);
+}
+
+const OUT_DIR = path.join(process.cwd(), 'src', 'content', 'holidays');
+fs.mkdirSync(OUT_DIR, { recursive: true });
+
+// ─── Stage 1 — Gemini SERP brief ────────────────────────────────────────────
+
+type Brief = {
+  primary_keyword: string;
+  related_long_tail: string[];
+  paa_questions: string[];
+  top_serp_titles: string[];
+  recommended_h2s: string[];
+  content_gaps: string[];
+  grounding_score: number;
+};
+
+const BRIEF_SYSTEM = `
+You are an SEO research analyst preparing a brief for a holiday-jewelry-gift
+commerce page. The destination is a handcrafted jeweler — Moon Raven Designs —
+so "gift" here means one thoughtful piece of meaningful jewelry, not a
+roundup of 50 stocking stuffers.
+
+You have google_search grounding — use it. Don't hallucinate SERPs. If the
+SERP is dominated by Amazon, Etsy roundups, and Pinterest boards rather than
+real editorial, say so via grounding_score.
+
+Output ONLY a JSON object — no fences, no commentary.
+`.trim();
+
+function briefPrompt(h: HolidayConfig): string {
+  const queries = [h.primaryQuery, ...h.relatedQueries].map((q) => `  - "${q}"`).join('\n');
+  return `
+Holiday: ${h.holiday}
+Page label: ${h.label}
+Emotional / symbolic anchor: ${h.anchor}
+Tone: ${h.tone}
+
+Inspect Google SERPs for these queries:
+${queries}
+
+Output JSON with EXACTLY these keys:
+{
+  "primary_keyword": "single highest-value commercial query",
+  "related_long_tail": ["8-12 related searches buyers actually type"],
+  "paa_questions": ["6-10 People Also Ask questions — verbatim if you can see them"],
+  "top_serp_titles": ["title tags of top 10 organic results — verbatim"],
+  "recommended_h2s": ["5-7 H2 section headings the page should cover, as short noun phrases"],
+  "content_gaps": ["3-5 concrete subtopics the top-10 misses, mishandles, or treats shallowly"],
+  "grounding_score": 0
+}
+
+grounding_score scale:
+  0-3 = SERPs are spam / Etsy-only / no real commercial intent. Skip.
+  4-6 = mixed; some real editorial, some thin lists.
+  7-10 = clear buyer intent, multiple ranking pages with real depth.
+
+No commentary, no fences.
+`.trim();
+}
+
+async function generateBrief(h: HolidayConfig): Promise<Brief> {
+  enforceCap(BUDGET_CAP_USD);
+  const result = await gemini(briefPrompt(h), {
+    systemInstruction: BRIEF_SYSTEM,
+    withGoogleSearch: true,
+    temperature: 0.3,
+    maxOutputTokens: 4096,
+  });
+  const s = addUsage(result.promptTokens, result.outputTokens);
+  console.log(
+    `    gemini tokens: in=${result.promptTokens} out=${result.outputTokens} (cumulative $${s.costUsd.toFixed(3)})`,
+  );
+  const raw = stripJsonFences(result.text);
+  try {
+    return JSON.parse(raw) as Brief;
+  } catch {
+    throw new Error(`Brief JSON parse failed for ${h.slug}. First 400 chars:\n${raw.slice(0, 400)}`);
+  }
+}
+
+// ─── Stage 2 — DeepSeek page copy ───────────────────────────────────────────
+
+const WRITER_SYSTEM_BASE = `
+You write copy for Moon Raven Designs — a Vancouver Island jeweler making
+handcrafted talismans in sterling silver and oxidized bronze since 1974.
+Brand voice: intentional, slightly poetic, quiet, sincere. Like Mary
+Oliver met a metalsmith.
+
+For holiday gift pages: someone is choosing one specific meaningful piece
+for a specific person on a specific date. Your job is to help them choose
+well — not to upsell, not to make them feel rushed, not to flatter them
+for being thoughtful. Be a friend at the jeweler's bench.
+
+Hard rules — these are deal-breakers:
+- NEVER use: "perfect gift", "must-have", "trendy", "loved one", "she'll love",
+  "he'll love", "celebrate their", "show her you care", "show him you care",
+  "say it all", "stunning", "gorgeous", "absolutely love", "wow factor",
+  "this season", "tis the season", "snag", "score", "treat yourself".
+- No exclamation points. No emojis. No clickbait questions.
+- No "shop now" or sales CTAs inside body text.
+- Don't promise weights, sizes, finishes, or stock you can't verify.
+- US English. Vary sentence length. Short paragraphs.
+- No discount-code copy. This is editorial, not promo.
+- Cite no sources.
+`.trim();
+
+const WRITER_SYSTEM_MEMORIAL_HOLIDAY = `
+${WRITER_SYSTEM_BASE}
+
+This is a memorial-tier holiday page. Apply the grief-aware voice:
+- NEVER use: "loved one", "celebrate their memory", "honor their memory",
+  "find closure", "say goodbye", "in a better place", "passed over",
+  "rainbow bridge", "fur baby". The holiday will be hard, and the page
+  should acknowledge that without trying to make it OK.
+- Acknowledge "first holiday without them" is a real category and is hard.
+- Do not promise the piece will help with grief. It will just be there.
+- Output ONLY valid JSON.
+`.trim();
+
+const WRITER_SYSTEM_ROMANCE = `
+${WRITER_SYSTEM_BASE}
+
+This is a romance / partnership holiday page (Valentine's, anniversary,
+engagement, wedding). Additional rules:
+- NEVER use: "she'll feel like a queen", "make her heart skip", "swept off
+  her feet", "the one", "your forever person", "their special day".
+- The reader has a real relationship with a real adult. Treat both that way.
+- Output ONLY valid JSON.
+`.trim();
+
+function pickWriterSystem(h: HolidayConfig): string {
+  if (h.tone === 'memorial') return WRITER_SYSTEM_MEMORIAL_HOLIDAY;
+  if (h.tone === 'romance') return WRITER_SYSTEM_ROMANCE;
+  return WRITER_SYSTEM_BASE + '\n\nOutput ONLY valid JSON.';
+}
+
+type HolidayContent = {
+  slug: string;
+  seo_title: string;
+  meta_description: string;
+  intro: string;
+  for_whom: string;
+  why_this_symbol: string;
+  how_to_choose: string;
+  presentation: string;
+  faq: Array<{ q: string; a: string }>;
+};
+
+function writerPrompt(h: HolidayConfig, brief: Brief): string {
+  return `
+Write the Holiday Gift page for: ${h.label}
+Slug: ${h.slug}
+Holiday: ${h.holiday}
+Tone: ${h.tone}
+Emotional / symbolic anchor: ${h.anchor}
+Primary query: ${h.primaryQuery}
+
+SERP BRIEF (cover the H2s, answer PAA in FAQ, address gaps):
+${JSON.stringify(brief, null, 2)}
+
+Schema (return JSON with EXACTLY these keys):
+{
+  "slug": "${h.slug}",
+  "seo_title": "string — max 60 chars, includes the holiday or season noun and 'jewelry' or 'gift'",
+  "meta_description": "string — max 155 chars, evocative + concrete, no trailing ellipsis, no exclamation",
+  "intro": "string — 2 short paragraphs (~80-110 words total) — frame why someone is on this page and what the next ten minutes of reading is for. No H2 prefix.",
+  "for_whom": "string — 1-2 paragraphs (~80-110 words) titled 'For whom these gifts are made'. Who tends to choose this particular guide. Grounded specifics.",
+  "why_this_symbol": "string — 2-3 paragraphs (~150-200 words) titled 'Why this symbol for this holiday'. Explain why the anchor symbol/material suits this holiday and recipient. Be concrete, not horoscope-vague.",
+  "how_to_choose": "string — 2 paragraphs (~130-180 words) titled 'How to choose the right piece'. Practical guidance: necklace vs ring vs earring; chain length; whether to engrave; how much weight is right; whether to give an everyday piece or an occasion piece.",
+  "presentation": "string — 1-2 paragraphs (~90-130 words) titled 'On giving it'. How to present the piece. What to write in the card (1-2 sample lines — short, original, not Hallmark). Whether to give it in person or by mail.",
+  "faq": [
+    { "q": "string", "a": "2-3 sentence answer" },
+    ... 6-8 entries total, drawn from the brief's paa_questions
+  ]
+}
+
+Word counts are targets. Don't pad. Don't keyword-stuff. Output JSON only.
+`.trim();
+}
+
+async function generateCopy(h: HolidayConfig, brief: Brief): Promise<HolidayContent> {
+  const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${DEEPSEEK_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: pickWriterSystem(h) },
+        { role: 'user', content: writerPrompt(h, brief) },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.55,
+      max_tokens: 3500,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`DeepSeek ${res.status}: ${body.slice(0, 400)}`);
+  }
+  const json = (await res.json()) as {
+    choices: Array<{ message: { content: string } }>;
+    usage?: { prompt_tokens: number; completion_tokens: number };
+  };
+  const parsed = JSON.parse(json.choices[0]?.message?.content ?? '{}') as HolidayContent;
+  if (!parsed.slug) parsed.slug = h.slug;
+  if (json.usage) {
+    console.log(`    writer tokens: in=${json.usage.prompt_tokens} out=${json.usage.completion_tokens}`);
+  }
+  return parsed;
+}
+
+async function processHoliday(h: HolidayConfig) {
+  console.log(`\n[${h.slug}]`);
+  console.log('  · Stage 1 — Gemini SERP brief...');
+  const brief = await generateBrief(h);
+  fs.writeFileSync(
+    path.join(OUT_DIR, `${h.slug}.brief.json`),
+    JSON.stringify(brief, null, 2) + '\n',
+  );
+  console.log(
+    `    brief saved (paa=${brief.paa_questions?.length ?? 0}, h2s=${brief.recommended_h2s?.length ?? 0}, grounding=${brief.grounding_score})`,
+  );
+
+  if ((brief.grounding_score ?? 0) < 4) {
+    console.log(`    SKIP — grounding_score ${brief.grounding_score} < 4`);
+    return;
+  }
+
+  console.log('  · Stage 2 — DeepSeek writes copy...');
+  const content = await generateCopy(h, brief);
+  fs.writeFileSync(path.join(OUT_DIR, `${h.slug}.json`), JSON.stringify(content, null, 2) + '\n');
+  console.log(`    saved → src/content/holidays/${h.slug}.json`);
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const targets = args.length > 0 ? HOLIDAYS.filter((h) => args.includes(h.slug)) : HOLIDAYS;
+  if (targets.length === 0) {
+    console.error('No matching slugs. Available:', HOLIDAYS.map((h) => h.slug).join(', '));
+    process.exit(1);
+  }
+  console.log(`Generating ${targets.length} holiday page(s)...`);
+  for (const h of targets) {
+    try {
+      await processHoliday(h);
+    } catch (err) {
+      console.error(`[${h.slug}] ✗ ${(err as Error).message}`);
+    }
+  }
+  const final = getState();
+  console.log(
+    `\n[budget] $${final.costUsd.toFixed(3)} | ${final.calls} calls | in=${final.promptTokens} out=${final.outputTokens}`,
+  );
+  console.log('\nDone.');
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
